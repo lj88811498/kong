@@ -1,0 +1,149 @@
+======================添加一个名称为book的服务======================================>
+curl -i -X POST \
+--url http://localhost:8001/services/ \
+--data 'name=monkey' \
+--data 'url=http://www.baidu.com'
+
+==========================================>
+{"host":"www.baidu.com","created_at":1554876472,"connect_timeout":60000,"id":"6c88e701-1a17-4612-910c-f13b9b660fcb","protocol":"http","name":"monkey","read_timeout":60000,"port":80,"path":null,"updated_at":1554876472,"retries":5,"write_timeout":60000}
+
+ 
+
+使monkey服务暴露出来以供用户访问，book服务没必要添加多个路由。 
+ curl -i -X POST \
+--url http://localhost:8001/services/monkey/routes \
+--data 'hosts[]=monkey.com' \
+--data 'paths[]=/v1/monkeys' 
+=========================================>
+{"created_at":1554876554,"strip_path":true,"hosts":["monkey.com"],"preserve_host":false,"regex_priority":0,"updated_at":1554876554,"paths":["\/v1\/monkeys"],"service":{"id":"6c88e701-1a17-4612-910c-f13b9b660fcb"},"methods":null,"protocols":["http","https"],"id":"36a8c3ed-892f-4cb6-b0bb-ae779ec8db76"}
+
+
+
+通过Kong在8000端口暴露出来的服务地址获得所有的monkey
+ curl -i -X GET --url http://localhost:8000/v1/monkeys --header 'Host: monkey.com' 
+ 
+=============================================>
+<!DOCTYPE html>
+<!--STATUS OK--><html> <head><meta http-equiv=content-type content=text/html;charset=utf-8><meta http-equiv=X-UA-Compatible content=IE=Edge><meta content=always name=referrer><link rel=stylesheet type=text/css href=http://s1.bdstatic.com/r/www/cache/bdorz/baidu.min.css><title>百度一下，你就知道</title></head> <body link=#0000cc> <div id=wrapper> <div id=head> <div class=head_wrapper> <div class=s_form> <div class=s_form_wrapper> <div id=lg> <img hidefocus=true src=//www.baidu.com/img/bd_logo1.png width=270 height=129> </div> <form id=form name=f action=//www.baidu.com/s class=fm> <input type=hidden name=bdorz_come value=1> <input type=hidden name=ie value=utf-8> <input type=hidden name=f value=8> <input type=hidden name=rsv_bp value=1> <input type=hidden name=rsv_idx value=1> <input type=hidden name=tn value=baidu><span class="bg s_ipt_wr"><input id=kw name=wd class=s_ipt value maxlength=255 autocomplete=off autofocus></span><span class="bg s_btn_wr"><input type=submit id=su value=百度一下 class="bg s_btn"></span> </form> </div> </div> <div id=u1> <a href=http://news.baidu.com name=tj_trnews class=mnav>新闻</a> <a href=http://www.hao123.com name=tj_trhao123 class=mnav>hao123</a> <a href=http://map.baidu.com name=tj_trmap class=mnav>地图</a> <a href=http://v.baidu.com name=tj_trvideo class=mnav>视频</a> <a href=http://tieba.baidu.com name=tj_trtieba class=mnav>贴吧</a> <noscript> <a href=http://www.baidu.com/bdorz/login.gif?login&amp;tpl=mn&amp;u=http%3A%2F%2Fwww.baidu.com%2f%3fbdorz_come%3d1 name=tj_login class=lb>登录</a> </noscript> <script>document.write('<a href="http://www.baidu.com/bdorz/login.gif?login&tpl=mn&u='+ encodeURIComponent(window.location.href+ (window.location.search === "" ? "?" : "&")+ "bdorz_come=1")+ '" name="tj_login" class="lb">登录</a>');</script> <a href=//www.baidu.com/more/ name=tj_briicon class=bri style="display: block;">更多产品</a> </div> </div> </div> <div id=ftCon> <div id=ftConw> <p id=lh> <a href=http://home.baidu.com>关于百度</a> <a href=http://ir.baidu.com>About Baidu</a> </p> <p id=cp>&copy;2017&nbsp;Baidu&nbsp;<a href=http://www.baidu.com/duty/>使用百度前必读</a>&nbsp; <a href=http://jianyi.baidu.com/ class=cp-feedback>意见反馈</a>&nbsp;京ICP证030173号&nbsp; <img src=//www.baidu.com/img/gs.gif> </p> </div> </div> </div> </body> </html>
+
+
+ 
+ 为monkey服务启用OAuth 2.0 Authentication插件,并激活授权码模式 
+ 
+ curl -i -X POST \
+--url http://localhost:8001/services/monkey/plugins \
+--data "name=oauth2"  \
+--data "config.scopes=email,phone,address" \
+--data "config.mandatory_scope=true" \
+--data "config.enable_authorization_code=true"
+======================================================>
+{"created_at":1554876889000,"config":{"refresh_token_ttl":1209600,"scopes":["email","phone","address"],"mandatory_scope":true,"provision_key":"u5NJ2RxkWmrWsIHV5z6UVCHf0QMCnVEu","hide_credentials":false,"enable_authorization_code":true,"enable_implicit_grant":false,"global_credentials":false,"accept_http_if_already_terminated":false,"enable_password_grant":false,"enable_client_credentials":false,"anonymous":"","token_expiration":7200,"auth_header_name":"authorization"},"id":"6569e76b-e046-48da-97b3-cea2978f5e8e","enabled":true,"service_id":"6c88e701-1a17-4612-910c-f13b9b660fcb","name":"oauth2"}
+
+
+添加1个username为monkey1的消费者，{custom_id}参数可省略，此参数是个自定义唯一标识， 
+它作用是把消费者jack映射到另外一个数据库上 
+curl -i -X POST \
+--url http://localhost:8001/consumers/  \
+--data "username=monkey1" 
+
+==================>
+{"created_at":1554877117000,"username":"monkey1","id":"208aea37-c252-4476-a4e5-c9bce9a40c11"}
+
+
+为消费者monkey1创建1个名称为Animal的应用，redirect_uri参数定义发送code和state的回调地址 
+参数{client_id}和{client_secret}可自定义，省略时由系统随机生成 
+ curl -i -X POST \
+--url http://localhost:8001/consumers/monkey1/oauth2/ \
+--data "name=Animal" \
+--data "redirect_uri=http://csdn.net/"
+
+===================>
+{"client_id":"yk42pHjmtZwV1SR2DkITPJkGSGwvxRzu","created_at":1554877243000,"id":"3df97ca6-fd2b-4d5f-b0b2-8083d30bbbd1","redirect_uri":["http:\/\/csdn.net\/"],"name":"Animal","client_secret":"A4jlh9THrgb1oDVHtMVeOp9be3il5AqW","consumer_id":"208aea37-c252-4476-a4e5-c9bce9a40c11"}
+
+根据{client_id}查询消费者的应用程序信息 
+curl -i -X GET \
+--url http://localhost:8001/oauth2 \
+--data "client_id=yk42pHjmtZwV1SR2DkITPJkGSGwvxRzu" 
+
+=============================>
+{"total":1,"data":[{"created_at":1554877243000,"client_id":"yk42pHjmtZwV1SR2DkITPJkGSGwvxRzu","id":"3df97ca6-fd2b-4d5f-b0b2-8083d30bbbd1","redirect_uri":["http:\/\/csdn.net\/"],"name":"Animal","client_secret":"A4jlh9THrgb1oDVHtMVeOp9be3il5AqW","consumer_id":"208aea37-c252-4476-a4e5-c9bce9a40c11"}]}
+
+
+
+带code去请求验证  
+monkey1:monkey1================>bW9ua2V5MTptb25rZXkx
+
+curl -i -X POST \
+--url https://localhost:8443/v1/monkeys/oauth2/authorize \
+--header "Authorization: Basic bW9ua2V5MUBxcS5jb206bW9ua2V5MQ==" \
+--header 'Host: monkey.com' \
+--data "client_id=yk42pHjmtZwV1SR2DkITPJkGSGwvxRzu" \
+--data "response_type=code" \
+--data "scope=email%20address" \
+--data "provision_key=u5NJ2RxkWmrWsIHV5z6UVCHf0QMCnVEu" \
+--data "authenticated_userid=1206" \
+--data "state=xyz"  --insecure 
+
+{"redirect_uri":"http:\/\/csdn.net\/?code=6YZUC3Egl0Uj4U3XkSXTBk5OlGiu9n6t&state=xyz"}
+
+
+
+客户继续发送第2个由参数{grant_type},{client_id},{client_secret},{code} 
+构成的POST请求去申请一个访问令牌和刷新令牌 
+{code}值获得令牌后立即失效，即{code}值只能用一次 
+
+ curl -i -X POST \
+--url https://localhost:8443/v1/monkeys/oauth2/token \
+--header "Host: monkey.com" \
+--data "grant_type=authorization_code" \
+--data "client_id=yk42pHjmtZwV1SR2DkITPJkGSGwvxRzu" \
+--data "client_secret=A4jlh9THrgb1oDVHtMVeOp9be3il5AqW" \
+--data "code=6YZUC3Egl0Uj4U3XkSXTBk5OlGiu9n6t" --insecure 
+
+{"refresh_token":"9SiVwogG7vnIEMoOpppbnjHL5LbRKB4F","token_type":"bearer","access_token":"XGGRbepfq9cWemoN3k0lXFP17PKarNx6","expires_in":7200}
+
+
+现在我们已经用一个随机的code交换获得了一个访问令牌和一个刷新令牌 
+这样就有可以访问书籍这个接口了 
+curl -i -X GET \
+--url https://localhost:8443/v1/monkeys \
+--header "Authorization: Bearer XGGRbepfq9cWemoN3k0lXFP17PKarNx6" \
+--header 'Host: monkey.com' --insecure 
+
+<!DOCTYPE html>
+<!--STATUS OK--><html> <head><meta http-equiv=content-type content=text/html;charset=utf-8><meta http-equiv=X-UA-Compatible content=IE=Edge><meta content=always name=referrer><link rel=stylesheet type=text/css href=http://s1.bdstatic.com/r/www/cache/bdorz/baidu.min.css><title>百度一下，你就知道</title></head> <body link=#0000cc> <div id=wrapper> <div id=head> <div class=head_wrapper> <div class=s_form> <div class=s_form_wrapper> <div id=lg> <img hidefocus=true src=//www.baidu.com/img/bd_logo1.png width=270 height=129> </div> <form id=form name=f action=//www.baidu.com/s class=fm> <input type=hidden name=bdorz_come value=1> <input type=hidden name=ie value=utf-8> <input type=hidden name=f value=8> <input type=hidden name=rsv_bp value=1> <input type=hidden name=rsv_idx value=1> <input type=hidden name=tn value=baidu><span class="bg s_ipt_wr"><input id=kw name=wd class=s_ipt value maxlength=255 autocomplete=off autofocus></span><span class="bg s_btn_wr"><input type=submit id=su value=百度一下 class="bg s_btn"></span> </form> </div> </div> <div id=u1> <a href=http://news.baidu.com name=tj_trnews class=mnav>新闻</a> <a href=http://www.hao123.com name=tj_trhao123 class=mnav>hao123</a> <a href=http://map.baidu.com name=tj_trmap class=mnav>地图</a> <a href=http://v.baidu.com name=tj_trvideo class=mnav>视频</a> <a href=http://tieba.baidu.com name=tj_trtieba class=mnav>贴吧</a> <noscript> <a href=http://www.baidu.com/bdorz/login.gif?login&amp;tpl=mn&amp;u=http%3A%2F%2Fwww.baidu.com%2f%3fbdorz_come%3d1 name=tj_login class=lb>登录</a> </noscript> <script>document.write('<a href="http://www.baidu.com/bdorz/login.gif?login&tpl=mn&u='+ encodeURIComponent(window.location.href+ (window.location.search === "" ? "?" : "&")+ "bdorz_come=1")+ '" name="tj_login" class="lb">登录</a>');</script> <a href=//www.baidu.com/more/ name=tj_briicon class=bri style="display: block;">更多产品</a> </div> </div> </div> <div id=ftCon> <div id=ftConw> <p id=lh> <a href=http://home.baidu.com>关于百度</a> <a href=http://ir.baidu.com>About Baidu</a> </p> <p id=cp>&copy;2017&nbsp;Baidu&nbsp;<a href=http://www.baidu.com/duty/>使用百度前必读</a>&nbsp; <a href=http://jianyi.baidu.com/ class=cp-feedback>意见反馈</a>&nbsp;京ICP证030173号&nbsp; <img src=//www.baidu.com/img/gs.gif> </p> </div> </div> </div> </body> </html>
+
+
+使用一个刷新令牌去获得一个新的访问令牌和一个更新的刷新令牌，前面的刷新令牌与访问令牌就立即作废了
+
+curl -i -X POST https://localhost:8443/v1/monkeys/oauth2/token \
+--header 'Host: monkey.com' \
+--data "grant_type=refresh_token" \
+--data "client_id=yk42pHjmtZwV1SR2DkITPJkGSGwvxRzu" \
+--data "client_secret=A4jlh9THrgb1oDVHtMVeOp9be3il5AqW" \
+--data "refresh_token=9SiVwogG7vnIEMoOpppbnjHL5LbRKB4F" --insecure 
+
+{"refresh_token":"Z9liQuV7rYFIJOIsr1nXY50cqo2s32NI","token_type":"bearer","access_token":"jthlAPxMVE55BlSlP0nGKXihrViUjYs0","expires_in":7200}
+
+
+用更新的访问令牌去删除一条书籍数据
+
+curl -i -X DELETE \
+
+--url https://localhost:8443/v1/monkeys/2 \
+--header "Authorization: Bearer jthlAPxMVE55BlSlP0nGKXihrViUjYs0" \
+--header 'Host: monkey.com'  --insecure 
+
+{"message":"deleted successfully"}
+
+
+用更新的访问令牌去新增一条书籍数据 
+
+curl -i -X POST \ 
+--url https://localhost:8443/v1/books \ 
+--header "Authorization: Bearer XNURzUlIi4gtwkjZPeWkQrv0QMZnUFET" \ 
+--header 'Host: contoso.com' \ 
+--data 'title=TiDB in Action' \ 
+--data 'author=Tomson'  --insecure 
+
+{"message":"inserted successfully"}

@@ -1,0 +1,86 @@
+curl -i -X POST  --url http://localhost:8001/services/  --data 'name=book'  --data 'url=http://contoso.com/v1/books'
+
+curl -i -X POST --url http://localhost:8001/services/book/routes --data 'hosts[]=contoso.com' --data 'paths[]=/v1/books' 
+{"created_at":1554866993,"strip_path":true,"hosts":["contoso.com"],"preserve_host":false,"regex_priority":0,"updated_at":1554866993,"paths":["\/v1\/books"],"service":{"id":"43d648e7-7e6a-47ca-9a0c-2ce9d36838fc"},"methods":null,"protocols":["http","https"],"id":"3a35a3f4-9547-47a8-8a0b-4bb8ca602cb6"}
+
+curl -i -X GET  --url http://localhost:8000/v1/books  --header 'Host: contoso.com' 
+
+
+ curl -i -X POST --url http://localhost:8001/services/book/plugins  --data "name=oauth2"  --data "config.scopes=email,phone,address"  --data "config.mandatory_scope=true" --data "config.enable_authorization_code=true"
+ {"created_at":1554867310000,"config":{"refresh_token_ttl":1209600,"scopes":["email","phone","address"],"mandatory_scope":true,"provision_key":"R92fx3yUrzGpU90Y5hNBLgZ16GPWuAAw","hide_credentials":false,"enable_authorization_code":true,"enable_implicit_grant":false,"global_credentials":false,"accept_http_if_already_terminated":false,"enable_password_grant":false,"enable_client_credentials":false,"anonymous":"","token_expiration":7200,"auth_header_name":"authorization"},"id":"96ee5a46-06e4-444d-bb74-480c1cf3ddc6","enabled":true,"service_id":"43d648e7-7e6a-47ca-9a0c-2ce9d36838fc","name":"oauth2"}
+
+ 
+ curl -i -X POST --url http://localhost:8001/consumers/   --data "username=jack" 
+ {"created_at":1554867368000,"username":"jack","id":"b03a6cd7-674f-4d32-bf6d-da2cfcc56a93"}
+
+ 
+ curl -i -X POST --url http://localhost:8001/consumers/jack/oauth2/ --data "name=Book App"  --data "redirect_uri=http://getkong.org/" 
+ {"client_id":"WnSUL0wNk2tPX8h9rKYw9fTdmrz8JSxZ","created_at":1554875223000,"id":"1ba5ab02-0500-4858-bcbf-5b1a2c08801c","redirect_uri":["http:\/\/getkong.org\/"],"name":"Book App","client_secret":"qGPXktAZR43RqqcMN80KDVZzCx48ve9t","consumer_id":"b03a6cd7-674f-4d32-bf6d-da2cfcc56a93"}
+
+ 
+ curl -i -X GET --url http://localhost:8001/oauth2 --data "client_id=WnSUL0wNk2tPX8h9rKYw9fTdmrz8JSxZ" 
+ 
+{"total":1,"data":[{"created_at":1554875223000,"client_id":"WnSUL0wNk2tPX8h9rKYw9fTdmrz8JSxZ","id":"1ba5ab02-0500-4858-bcbf-5b1a2c08801c","redirect_uri":["http:\/\/getkong.org\/"],"name":"Book App","client_secret":"qGPXktAZR43RqqcMN80KDVZzCx48ve9t","consumer_id":"b03a6cd7-674f-4d32-bf6d-da2cfcc56a93"}]}
+
+
+ curl -i -X GET --url http://localhost:8000/v1/books/2  --header 'Host: contoso.com' 
+ {"error_description":"The access token is missing","error":"invalid_request"}
+
+ 
+  curl -i -X POST \
+--url https://localhost:8443/v1/books/oauth2/authorize \
+--header "Authorization: Basic amFja0Bob3RtYWlsLmNvbSUzQTEyMzQ1Ng==" \
+--header 'Host: contoso.com' \
+--data "client_id=WnSUL0wNk2tPX8h9rKYw9fTdmrz8JSxZ" \
+--data "response_type=code" \
+--data "scope=email%20address" \
+--data "provision_key=R92fx3yUrzGpU90Y5hNBLgZ16GPWuAAw" \
+--data "authenticated_userid=1" \
+--data "state=xyz"  --insecure
+
+{"redirect_uri":"http:\/\/getkong.org\/?code=ASEoCTTM7pIxB3oPjTL9I9yVOZIxlD96&state=xyz"}
+
+
+curl -i -X POST \
+--url https://localhost:8443/v1/books/oauth2/token \
+--header "Host: contoso.com" \
+--data "grant_type=authorization_code" \
+--data "client_id=WnSUL0wNk2tPX8h9rKYw9fTdmrz8JSxZ" \
+--data "client_secret=qGPXktAZR43RqqcMN80KDVZzCx48ve9t" \
+--data "code=ScpryrA09b4ncUmcLXDAfwwzO9ny8BHb" --insecure
+
+{"refresh_token":"lLCQc7Leb528eGnpwMrEOeEmTEcy1UkU","token_type":"bearer","access_token":"3U2bxMd3QBATM4Vz7dddxAKA5TccarjP","expires_in":7200}
+
+curl -i -X GET \
+--url https://localhost:8443/v1/books \
+--header "Authorization: Bearer 3U2bxMd3QBATM4Vz7dddxAKA5TccarjP" \
+--header 'Host: contoso.com' --insecure 
+
+curl -i -X GET \
+--url http://localhost:8000/v1/books/2 \
+--header "Authorization: Bearer 3U2bxMd3QBATM4Vz7dddxAKA5TccarjP" \
+--header 'Host: contoso.com'
+
+
+ curl -i -X POST https://localhost:8443/v1/books/oauth2/token \
+--header 'Host: contoso.com' \
+--data "grant_type=refresh_token" \
+--data "client_id=WnSUL0wNk2tPX8h9rKYw9fTdmrz8JSxZ" \
+--data "client_secret=qGPXktAZR43RqqcMN80KDVZzCx48ve9t" \
+--data "refresh_token=lLCQc7Leb528eGnpwMrEOeEmTEcy1UkU" --insecure 
+
+{"refresh_token":"swIjTCDVAiHm5jwnSbOAkBMux8aVXJd9","token_type":"bearer","access_token":"XkGBfewPkRSCvnl9VTo7aixEQZzDMdOP","expires_in":7200}
+
+
+curl -i -X DELETE \
+--url https://localhost:8443/v1/books/2 \
+--header "Authorization: Bearer XkGBfewPkRSCvnl9VTo7aixEQZzDMdOP" \
+--header 'Host: contoso.com'  --insecure 
+
+
+curl -i -X POST \
+--url https://localhost:8443/v1/books \
+--header "Authorization: Bearer XkGBfewPkRSCvnl9VTo7aixEQZzDMdOP" \
+--header 'Host: contoso.com' \
+--data 'title=TiDB in Action' \
+--data 'author=Tomson'  --insecure 
